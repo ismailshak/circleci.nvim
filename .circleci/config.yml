@@ -1,0 +1,39 @@
+version: 2.1
+
+job-filters:
+  pr-branches: &pr-branches
+    branches:
+      ignore: main
+
+images:
+  default: &default
+    - image: cimg/base:current
+
+jobs:
+  check:
+    docker: *default
+    steps:
+      - checkout
+      - run:
+          name: Install stylua
+          command: |
+            # Download
+            sudo curl -L https://github.com/JohnnyMorganz/StyLua/releases/download/v0.20.0/stylua-linux-x86_64.zip \
+              -o /tmp/stylua-linux-x86_64.zip
+
+            # Unpack into PATH
+            sudo unzip /tmp/stylua-linux-x86_64.zip -d /usr/local/bin
+
+            # Make executable
+            sudo chmod +x /usr/local/bin/stylua
+      - run:
+          name: Check formatting
+          command: stylua --check .
+
+workflows:
+  ci:
+    jobs:
+      - check:
+          filters: *pr-branches
+
+
