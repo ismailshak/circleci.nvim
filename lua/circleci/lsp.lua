@@ -5,9 +5,9 @@ local M = {}
 ---Start (or attach to) the CircleCI language server
 ---@param bufid number
 function M.start(bufid)
-  local config = require("circleci.config").get_config()
+  local config = require("circleci.config").get()
 
-  if not config.lsp.enabled then
+  if not config.lsp.enable then
     return
   end
 
@@ -28,9 +28,9 @@ function M.start(bufid)
     name = "circleci",
     root_dir = root_dir,
     on_init = function(client)
-      local api_token = require("circleci.auth").get_api_token()
+      local api_token = require("circleci.api.auth").parse_api_token()
 
-      if api_token ~= nil then
+      if api_token ~= nil or api_token ~= "" then
         client.request("workspace/executeCommand", {
           command = "setToken",
           arguments = { api_token },
@@ -59,7 +59,7 @@ end
 ---Get the path to the schema.json file that's installed alongside the language server
 ---@return string
 function M.get_schema_path()
-  local config = require("circleci.config").get_config()
+  local config = require("circleci.config").get()
   if config.lsp.schema_path ~= "" then
     return config.lsp.schema_path
   end
@@ -84,7 +84,7 @@ end
 ---NOTE: Could be just the name of the binary if it's in the PATH
 ---@return string
 function M.get_circleci_binary_path()
-  local config = require("circleci.config").get_config()
+  local config = require("circleci.config").get()
   return config.lsp.cmd
 end
 

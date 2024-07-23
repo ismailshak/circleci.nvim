@@ -1,0 +1,75 @@
+
+---API response for the GET /me endpoint
+---
+---Reference: https://circleci.com/docs/api/v2/index.html#operation/getCurrentUser
+---
+---@class circleci.API.Me
+---@field id string
+---@field login string
+---@field name string
+
+---API response for the GET /pipeline endpoint
+---
+---Reference: https://circleci.com/docs/api/v2/index.html#operation/listPipelinesForProject
+---
+---@class circleci.API.Pipelines
+---@field items circleci.API.Pipeline[]
+---
+---A single pipeline object
+---@class circleci.API.Pipeline
+---@field id string
+---@field number number
+---@field state string
+---@field created_at string
+---@field updated_at string
+---@field vcs {branch?: string, revision: string, tag?: string}
+---
+---Sequence of errors that occurred during pipeline processing
+---@class circleci.API.PipelineError
+---@field message string
+---@field type "config"|"config-fetch"|"timeout"|"permission"|"other"|"trigger-rule"|"plan"
+
+---API response for the GET /pipeline/{pipeline-id}/workflows endpoint
+---
+---Reference: https://circleci.com/docs/api/v2/index.html#operation/listWorkflowsByPipelineId
+---
+---@class circleci.API.Workflows
+---@field items circleci.API.Workflow[]
+---@field next_page_token string
+
+---A single workflow object
+---@class circleci.API.Workflow
+---@field pipeline_id string
+---@field canceled_by? string
+---@field id string
+---@field name string
+---@field project_slug string
+---@field errored_by? string
+---@field tag? "setup"|"rerun-workflow-from-beginning" TODO: Find out what other values are possible (not documented)
+---@field status "success"|"running"|"not_run"|"failed"|"error"|"failing"|"on_hold"|"canceled"|"unauthorized"
+---@field pipeline_number number
+---@field created_at string
+---@field stopped_at string
+
+---Response from the GET /workflorw/{workflow-id}/jobs endpoint
+---
+---Reference: https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
+---
+---@class circleci.API.Jobs
+---@field items circleci.API.Job[]
+---@field next_page_token string
+---
+---A single job object
+---@class circleci.API.Job
+---@field canceled_by? string
+---@field dependencies string[]
+---@field job_number? integer
+---@field id string
+---@field started_at string
+---@field name string
+---@field approved_by? string
+---@field project_slug string
+---@field status "success"|"running"|"not_run"|"failed"|"retried"|"queued"|"not_running"|"infrastructure_fail"|"timed_out"|"on_hold"|"terminated_unknown"|"blocked"|"canceled"|"unauthorized"
+---@field type "build"|"approval"
+---@field stopped_at? string
+---@field approval_request_id? string

@@ -1,0 +1,2 @@
+# Official CircleCI VSCode extension stores info into the following file
+.vscode/settings.json 

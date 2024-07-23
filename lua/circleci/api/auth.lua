@@ -1,16 +1,9 @@
 local M = {}
 
----@type string | nil
-local cached_token = nil
-
 ---Get the user's CircleCI API token given their chosen approach
 ---@return string | nil
-function M.get_api_token()
-  if cached_token ~= nil then
-    return cached_token
-  end
-
-  local config = require("circleci.config").get_config()
+function M.parse_api_token()
+  local config = require("circleci.config").get()
 
   if type(config.api_token) == "function" then
     local key = config.api_token()
@@ -47,6 +40,12 @@ function M.get_api_token()
 
     return key
   end
+end
+
+---Get the project slug for the current project
+---@return string
+function M.get_project_slug()
+  return "gh/ismailshak/circleci.nvim"
 end
 
 return M

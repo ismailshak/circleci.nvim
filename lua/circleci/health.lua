@@ -33,7 +33,7 @@ function M.check()
   end
 
   if has_curl then
-    local api = require("circleci.api").new()
+    local api = require("circleci.api"):new()
 
     local response = api:me()
     if response.name ~= "" or response.name ~= nil then

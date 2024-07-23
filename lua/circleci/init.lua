@@ -1,12 +1,17 @@
 local M = {}
 
 ---Initializes the plugin
----@param opts? CircleCIConfig
+---@param opts? circleci.Config
 function M.setup(opts)
-  require("circleci.config").load_config(opts)
+  local config = require("circleci.config").merge(opts)
 
-  -- Registers user commands and autocommands
+  -- TODO: Convert to ftplugin instead of FileType autocommand
+  -- and add a setup() function to this module that registers user commands
   require("circleci.commands")
+
+  if config.ui.enable then
+    require("circleci.ui").setup(config)
+  end
 end
 
 return M
