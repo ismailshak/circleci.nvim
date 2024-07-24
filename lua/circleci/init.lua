@@ -9,9 +9,11 @@ function M.setup(opts)
   -- and add a setup() function to this module that registers user commands
   require("circleci.commands")
 
-  if config.ui.enable then
-    require("circleci.ui").setup(config)
+  if not config.ui.enable then
+    return
   end
+
+  require("circleci.ui").setup(config)
 end
 
 return M

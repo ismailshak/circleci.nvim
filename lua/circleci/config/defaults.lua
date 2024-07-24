@@ -23,9 +23,9 @@ M.defaults = {
       -- workflow = "", -- Might not be needed if we're showing status icons instead
       workflow_canceled = "",
       workflow_errored = "",
-      workflow_failed = "",
+      workflow_failed = "",
       workflow_hold = "",
-      workflow_running = "",
+      workflow_running = "", -- 
       workflow_success = "",
     },
   },

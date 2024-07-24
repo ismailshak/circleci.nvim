@@ -1,10 +1,13 @@
 local JobNode = require("circleci.ui.node.job")
+local PaddingNode = require("circleci.ui.node.padding")
 local PipelineNode = require("circleci.ui.node.pipeline")
+local TitleNode = require("circleci.ui.node.title")
 local WorkflowNode = require("circleci.ui.node.workflow")
+local highlights = require("circleci.ui.highlights")
 
----@class circlci.Panel
----@field lines string[]
+---@class circleci.Panel
 ---@field line_to_node table<number, circleci.Node>
+---@field node_to_line table<string, number>
 ---@field win_id number
 ---@field buf_id number
 ---@field api circleci.API
@@ -12,35 +15,36 @@ local WorkflowNode = require("circleci.ui.node.workflow")
 ---@field tree circleci.Tree
 ---@field win_opts table<string, boolean|string|number>
 ---@field buf_opts table<string, boolean|string|number>
----@field title string
+---@field buf_name string
 local Panel = {}
 
+---@type circleci.Panel|nil
 local singleton = nil
 
+---Initializes the panel or returns an existing instance
 ---@param opts {api: circleci.API, config: circleci.Config.UI}
-function Panel:new(opts)
+function Panel.init(opts)
   if singleton ~= nil then
     return singleton
   end
 
-  setmetatable({ __index = self }, self)
+  local instance = setmetatable({}, { __index = Panel })
 
-  self.lines = {}
-  self.line_to_node = {}
+  instance.line_to_node = {} -- <line_number, node>
+  instance.node_to_line = {} -- <node_id, line_number>
 
-  self.api = opts.api
-  self.config = opts.config
-  self.tree = require("circleci.ui.tree"):new()
+  instance.api = opts.api
+  instance.config = opts.config
+  instance.tree = require("circleci.ui.tree"):new()
 
-  self.win_id = nil
-  self.buf_id = nil
-  self.win_opts = self:_get_win_opts()
-  self.buf_opts = self:_get_buf_opts()
+  instance.win_id = nil
+  instance.buf_id = nil
+  instance.win_opts = instance:get_win_opts()
+  instance.buf_opts = instance:get_buf_opts()
+  instance.buf_name = "circleci.panel"
 
-  self.title = "Pipelines"
-
-  singleton = self
-  return self
+  singleton = instance
+  return instance
 end
 
 function Panel:close()
@@ -54,7 +58,7 @@ end
 
 function Panel:open()
   if not self.buf_id then
-    self:_init()
+    self:init_buf()
   end
 
   if self.win_id then
@@ -73,26 +77,44 @@ function Panel:open()
   end
 
   if self.tree:is_empty() then
-    self:build_tree()
+    self:build_initial_tree()
   end
-
-  if #self.lines == 0 then
-    return
-  end
-
-  self:render_title()
-  self:render_tree()
-
-  -- TODO: apply highlights
-  --
-  -- local highlight = require("circleci.ui.highlights")
-  -- vim.api.nvim_buf_set_extmark(self.buf_id, highlight.namespace, 0, 0, {
-  --   hl_group = highlight.default.title.group,
-  --   end_col = self.title:len(),
-  -- })
 end
 
-function Panel:build_tree()
+---@param node circleci.Node
+---@param lines table
+---@param hls table
+function Panel:insert_node(node, lines, hls)
+  local display = node:get_display()
+
+  table.insert(lines, display.line)
+
+  if display.highlights then
+    for _, hl in ipairs(display.highlights) do
+      table.insert(hls, {
+        group = hl.group,
+        start_col = hl.start_col,
+        end_col = hl.end_col,
+        row = #lines - 1,
+      })
+    end
+  end
+end
+
+function Panel:build_initial_tree()
+  local lines = {}
+  local hls = {}
+
+  vim.notify("Building initial tree", vim.log.levels.INFO)
+
+  local title_node = TitleNode:new()
+  self.tree:append_node(title_node)
+  self:insert_node(title_node, lines, hls)
+
+  local padding_node = PaddingNode:new()
+  self.tree:append_node(padding_node)
+  self:insert_node(padding_node, lines, hls)
+
   local pipelines = self.api:pipelines()
 
   for _, pipeline in ipairs(pipelines.items) do
@@ -103,93 +125,82 @@ function Panel:build_tree()
     -- Filter out pipelines that didn't generate workflows
     if #workflows.items ~= 0 then
       self.tree:append_node(pipeline_node)
+      self:insert_node(pipeline_node, lines, hls)
     end
 
     for _, workflow in ipairs(workflows.items) do
       local workflow_node = WorkflowNode:new(workflow)
       self.tree:append_child(pipeline_node, workflow_node)
+      self:insert_node(workflow_node, lines, hls)
 
       -- TODO: Don't fetch jobs until workflow is expanded
       local jobs = self.api:workflow_jobs(workflow.id)
       for _, job in ipairs(jobs.items) do
-        self.tree:append_child(workflow_node, JobNode:new(job))
+        local job_node = JobNode:new(job)
+        self.tree:append_child(workflow_node, job_node)
+        self:insert_node(job_node, lines, hls)
       end
     end
   end
-end
 
-function Panel:render_tree()
-  self.tree:walk(function(node)
-    local idx = #self.lines + 1
-    table.insert(self.lines, idx, node:render(self.config))
-    table.insert(self.line_to_node, idx, node)
-  end)
-
-  self:render()
-end
-
--- TODO: Remove this and have one "draw" call after self.lines is ready
-function Panel:render_title()
-  table.insert(self.lines, 1, self.title)
-  table.insert(self.lines, 2, "")
-
-  self:render()
-end
-
---TODO: Make this a general purpose draw method with optional line args
-function Panel:render()
   vim.api.nvim_set_option_value("modifiable", true, { buf = self.buf_id })
-  vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, self.lines)
+  vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, lines)
   vim.api.nvim_set_option_value("modifiable", false, { buf = self.buf_id })
+
+  for _, hl in ipairs(hls) do
+    vim.api.nvim_buf_add_highlight(self.buf_id, highlights.namespace, hl.group, hl.row, hl.start_col, hl.end_col)
+  end
 end
 
 ---Creates a new buffer for the panel but does not open it
-function Panel:_init()
+function Panel:init_buf()
   if self.buf_id then
     return
   end
 
   self.buf_id = vim.api.nvim_create_buf(false, false)
-  vim.api.nvim_buf_set_name(self.buf_id, "circleci_panel")
+  vim.api.nvim_buf_set_name(self.buf_id, self.buf_name)
 
   for k, v in pairs(self.buf_opts) do
     vim.api.nvim_set_option_value(k, v, { buf = self.buf_id })
   end
 end
 
----TODO: Move this into a static table so we don't have to create many of these
-function Panel:_get_win_opts()
-  return {
-    relativenumber = false,
-    number = false,
-    list = false,
-    winfixwidth = true,
-    winfixheight = true,
-    foldenable = false,
-    spell = false,
-    wrap = false,
-    signcolumn = "yes",
-    colorcolumn = "",
-    foldmethod = "manual",
-    foldcolumn = "0",
-    scrollbind = false,
-    cursorbind = false,
-    diff = false,
-    winhl = "SignColumn:CircleCISignColumn",
-  }
+local win_opts = {
+  relativenumber = false,
+  number = false,
+  list = false,
+  winfixwidth = true,
+  winfixheight = true,
+  foldenable = false,
+  spell = false,
+  wrap = false,
+  signcolumn = "yes",
+  colorcolumn = "",
+  foldmethod = "manual",
+  foldcolumn = "0",
+  scrollbind = false,
+  cursorbind = false,
+  diff = false,
+  winhl = "SignColumn:CircleCISignColumn",
+}
+
+function Panel:get_win_opts()
+  return win_opts
 end
 
----TODO: Move this into a static table so we don't have to create many of these
-function Panel:_get_buf_opts()
-  return {
-    swapfile = false,
-    buftype = "nofile",
-    modifiable = false,
-    bufhidden = "hide",
-    modeline = false,
-    undolevels = -1,
-    filetype = "circleci",
-  }
+local buf_opts = {
+  swapfile = false,
+  buftype = "nofile",
+  modifiable = false,
+  bufhidden = "hide",
+  modeline = false,
+  undolevels = -1,
+  filetype = "CircleCIPanel",
+}
+
+function Panel:get_buf_opts()
+  return buf_opts
 end
 
 return Panel
