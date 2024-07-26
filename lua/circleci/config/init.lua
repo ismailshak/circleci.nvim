@@ -14,18 +14,21 @@ local M = {}
 ---@class circleci.Config.UI
 ---@field enable? boolean If false the UI modules will not be loaded at all
 ---@field icons? circleci.Config.UI.Icons Configuration for the icons used in the UI
----@field highlights? table<string, vim.api.keyset.highlight> Overrides for the default UI highlights
+---@field panel? circleci.Config.UI.Panel Configuration for the panel
+
+---@class circleci.Config.UI.Panel
+---@field keys? table<string, string> Keybindings for the panel
 
 ---@class circleci.Config.UI.Icons
 ---@field collapsed? string Icon to display for a collapsed section
 ---@field expanded? string Icon to display for an expanded section
----@field job_canceled? string Icon to display for a cancelled job
+---@field job_canceled? string Icon to display for a canceled job
 ---@field job_failed? string Icon to display for a failed job
 ---@field job_hold? string Icon to display for a job that needs approval
 ---@field job_running? string Icon to display for a running job
 ---@field job_success? string Icon to display for a successful job
 ---@field pipeline? string Icon to display for a pipeline
----@field workflow_canceled? string Icon to display for a cancelled workflow
+---@field workflow_canceled? string Icon to display for a canceled workflow
 ---@field workflow_errored? string Icon to display for an errored workflow (e.g. config invalid)
 ---@field workflow_failed? string Icon to display for a failed workflow
 ---@field workflow_hold? string Icon to display for a workflow that needs approval

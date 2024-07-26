@@ -20,13 +20,19 @@ M.defaults = {
       job_running = "󰦖",
       job_success = "󰦕",
       pipeline = "", --  /  /  /  /  / 
-      -- workflow = "", -- Might not be needed if we're showing status icons instead
       workflow_canceled = "",
       workflow_errored = "",
       workflow_failed = "",
       workflow_hold = "",
       workflow_running = "", -- 
       workflow_success = "",
+    },
+    panel = {
+      keys = {
+        q = "close",
+        ["<CR>"] = "toggle_node",
+        ["<BS>"] = "collapse_parent",
+      },
     },
   },
 }

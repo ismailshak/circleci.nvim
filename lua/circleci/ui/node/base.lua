@@ -12,12 +12,14 @@ local colors = require("circleci.ui.highlights").colors
 ---@field parent circleci.Node|nil
 ---@field highlights? circleci.NodeDisplayHighlights[]
 ---@field line string
+---@field type "base"|"pipeline"|"workflow"|"job"
 local Node = {}
 
 ---@return circleci.Node
 function Node:new()
-  local instance = {}
-  setmetatable(instance, { __index = self })
+  local instance = setmetatable({}, { __index = self })
+
+  instance.type = "base"
 
   instance.parent = nil
   instance.children = {}
@@ -56,8 +58,10 @@ function Node:indent()
   return (" "):rep(self.depth)
 end
 
+---@param force? boolean
 ---@return circleci.NodeDisplay
-function Node:get_display()
+---@diagnostic disable-next-line: unused-local
+function Node:get_display(force)
   assert(false, "'get_display' must be implemented in child 'BaseNode' instances")
   ---@diagnostic disable-next-line: return-type-mismatch
   return nil
