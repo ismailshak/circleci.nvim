@@ -5,9 +5,7 @@ local M = {}
 function M.setup(opts)
   local config = require("circleci.config").merge(opts)
 
-  -- TODO: Convert to ftplugin instead of FileType autocommand
-  -- and add a setup() function to this module that registers user commands
-  require("circleci.commands")
+  require("circleci.commands").setup()
 
   if not config.ui.enable then
     return

@@ -15,14 +15,21 @@ function WorkflowNode:new(data)
   setmetatable(instance, { __index = self })
 
   instance.id = data.id
+  instance.type = "workflow"
+
   instance.data = data
 
   return instance
 end
 
+---@param force? boolean
 ---@return circleci.NodeDisplay
-function WorkflowNode:get_display()
+function WorkflowNode:get_display(force)
   if not self.line or self.line == "" then
+    self:set_display()
+  end
+
+  if force then
     self:set_display()
   end
 

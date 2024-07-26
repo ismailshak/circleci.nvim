@@ -15,14 +15,21 @@ function JobNode:new(data)
   ---@cast instance circleci.Node.Job
 
   instance.id = data.id
+  instance.type = "job"
+
   instance.data = data
 
   return instance
 end
 
+---@param force? boolean
 ---@return circleci.NodeDisplay
-function JobNode:get_display()
+function JobNode:get_display(force)
   if not self.line or self.line == "" then
+    self:set_display()
+  end
+
+  if force then
     self:set_display()
   end
 
