@@ -1,3 +1,8 @@
+local async = require("circleci.async")
+local http = require("circleci.api.http")
+
+local uv = vim.uv or vim.loop
+
 ---@class circleci.API
 ---@field token string
 ---@field base_url string
@@ -82,21 +87,21 @@ function API:collaborations()
 end
 
 ---@return circleci.API.Pipelines
-function API:pipelines()
-  local url = string.format("%s/project/%s/%s/%s/pipeline", self.base_url, self.provider, self.owner, self.project)
-
-  local cmd = {
-    "curl",
-    url,
-    "--header",
-    string.format("Circle-Token: %s", self.token),
-    "--silent",
-  }
-
-  local result = vim.system(cmd, { text = true }):wait()
-
-  return self.decode_response(result.stdout)
-end
+-- function API:pipelines()
+--   local url = string.format("%s/project/%s/%s/%s/pipeline", self.base_url, self.provider, self.owner, self.project)
+--
+--   local cmd = {
+--     "curl",
+--     url,
+--     "--header",
+--     string.format("Circle-Token: %s", self.token),
+--     "--silent",
+--   }
+--
+--   local result = vim.system(cmd, { text = true }):wait()
+--
+--   return self.decode_response(result.stdout)
+-- end
 
 ---@return circleci.API.Workflows
 function API:pipeline_workflows(pipeline_id)
@@ -132,5 +137,72 @@ function API:workflow_jobs(workflow_id)
 
   return self.decode_response(result.stdout)
 end
+
+---@param callback fun(data: circleci.API.Pipelines)
+function API:pipelines_async(callback)
+  local url = string.format("%s/project/%s/%s/%s/pipeline", self.base_url, self.provider, self.owner, self.project)
+  local headers = { ["Circle-Token"] = self.token }
+
+  http.request(url, headers, function(err, data)
+    if err then
+      vim.notify("Failed to fetch pipelines\n" .. err, vim.log.levels.ERROR)
+      return
+    end
+
+    callback(data)
+  end)
+
+  -- local async_request = async.wrap(http.request)
+  --
+  -- async.sync(function()
+  --   local err, data = async.await(async_request(url, headers))
+  --
+  --   if err then
+  --     vim.notify("Failed to fetch pipelines\n" .. err, vim.log.levels.ERROR)
+  --     return
+  --   end
+  --
+  --   return data
+  -- end)(callback)
+
+  -- async.sync((url, headers) function(err, data)
+  --   if err then
+  --     vim.notify("Failed to fetch workflows\n" .. err, vim.log.levels.ERROR)
+  --     return
+  --   end
+  --
+  --   callback(data)
+  -- end))
+end
+
+---@param pipeline_id string
+---@param callback fun(data: circleci.API.Workflows)
+function API:workflows_async(pipeline_id, callback)
+  local url = string.format("%s/pipeline/%s/workflow", self.base_url, pipeline_id)
+  local headers = { ["Circle-Token"] = self.token }
+
+  http.request(url, headers, function(err, data)
+    if err then
+      vim.notify("Failed to fetch workflows\n" .. err, vim.log.levels.ERROR)
+      return
+    end
+
+    callback(data)
+  end)
+end
+--
+-- function API:initial_fetch()
+--   return async.sync(function()
+--     local pipelines = async.await(self:pipelines_async()())
+--
+--     local results = {}
+--     for i, pipeline in ipairs(pipelines) do
+--       local workflows = async.await(self:workflows_async(pipeline)())
+--       results[i] = { pipeline = pipeline, workflows = workflows }
+--     end
+--
+--     return results
+--   end)
+-- end
 
 return API

@@ -65,6 +65,13 @@ function M.usercmds()
       end
     end,
   })
+
+  usercmd("TestMe", function(args)
+    require("circleci.test")[args.args]()
+  end, {
+    nargs = 1,
+    desc = "Run tests",
+  })
 end
 
 function M.setup()

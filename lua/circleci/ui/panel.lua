@@ -2,7 +2,9 @@ local JobNode = require("circleci.ui.node.job")
 local PipelineNode = require("circleci.ui.node.pipeline")
 local WorkflowNode = require("circleci.ui.node.workflow")
 local actions = require("circleci.ui.actions")
+local async = require("circleci.async")
 local highlights = require("circleci.ui.highlights")
+local http = require("circleci.api.http")
 
 local M = {}
 
@@ -120,10 +122,10 @@ end
 ---@param lines table
 ---@param hls table
 ---@param row_start number
-function Panel:build_line(node, lines, hls, row_start)
+function Panel:build_line(node, lines, hls, row_start, idx)
   local display = node:get_display()
 
-  table.insert(lines, display.line)
+  table.insert(lines, idx or #lines, display.line)
 
   if display.highlights then
     for _, hl in ipairs(display.highlights) do
@@ -131,56 +133,101 @@ function Panel:build_line(node, lines, hls, row_start)
         group = hl.group,
         start_col = hl.start_col,
         end_col = hl.end_col,
-        row = row_start + #lines - 1,
+        row = row_start + (idx or #lines - 1),
       })
     end
   end
 end
 
 function Panel:build_initial_tree()
-  local lines = {}
-  local hls = {}
+  local fetch_pipelines = async.wrap(function(...)
+    return self.api:pipelines_async(...)
+  end)
 
-  local pipelines = self.api:pipelines()
+  async.sync(function()
+    -- local pipelines = async.await(fetch_pipelines())
 
-  for _, pipeline in ipairs(pipelines.items) do
-    local pipeline_node = PipelineNode:new(pipeline)
+    async.await(async.main_loop)
 
-    local workflows = self.api:pipeline_workflows(pipeline.id)
+    local data = http.decode_json(pipelines)
 
-    -- Filter out pipelines that didn't generate workflows
-    if #workflows.items ~= 0 then
-      self.tree:append_node(pipeline_node)
-      self:build_line(pipeline_node, lines, hls, 0)
+    print(vim.inspect(data))
+    return pipelines
+  end)(function(data)
+    print(vim.inspect(data))
+  end)
 
-      self.node_to_line[pipeline_node.id] = #lines
-      self.line_to_node[#lines] = pipeline_node
-    end
-
-    for _, workflow in ipairs(workflows.items) do
-      local workflow_node = WorkflowNode:new(workflow)
-      self.tree:append_child(pipeline_node, workflow_node)
-
-      -- self.node_to_line[workflow_node.id] = #lines
-      -- self.line_to_node[#lines] = workflow_node
-
-      -- -- TODO: Don't fetch jobs until workflow is expanded
-      -- local jobs = self.api:workflow_jobs(workflow.id)
-      -- for _, job in ipairs(jobs.items) do
-      --   local job_node = JobNode:new(job)
-      --   self.tree:append_child(workflow_node, job_node)
-      --   self:insert_node(job_node, lines, hls)
-      -- end
-    end
-  end
-
-  vim.api.nvim_set_option_value("modifiable", true, { buf = self.buf_id })
-  vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, lines)
-  vim.api.nvim_set_option_value("modifiable", false, { buf = self.buf_id })
-
-  for _, hl in ipairs(hls) do
-    vim.api.nvim_buf_add_highlight(self.buf_id, highlights.namespace, hl.group, hl.row, hl.start_col, hl.end_col)
-  end
+  -- vim.api.nvim_set_option_value("modifiable", true, { buf = self.buf_id })
+  -- vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, { "Loading..." })
+  -- vim.api.nvim_set_option_value("modifiable", false, { buf = self.buf_id })
+  --
+  -- self.api:pipelines(function(pipelines)
+  --   local lines = {}
+  --   local hls = {}
+  --   local workflows_fetched = 0
+  --
+  --   local idle = vim.uv.new_idle()
+  --   idle:start(function()
+  --     if workflows_fetched < #pipelines.items then
+  --       return
+  --     end
+  --
+  --     idle:stop()
+  --     idle:close()
+  --
+  --     vim.defer_fn(function()
+  --       print("Writing lines")
+  --       print(vim.inspect(lines))
+  --       vim.api.nvim_set_option_value("modifiable", true, { buf = self.buf_id })
+  --       if #lines == 0 then
+  --         vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, { "No pipelines found" })
+  --         vim.api.nvim_set_option_value("modifiable", false, { buf = self.buf_id })
+  --         return
+  --       end
+  --       vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, {})
+  --       vim.api.nvim_buf_set_lines(self.buf_id, 0, -1, false, lines)
+  --       vim.api.nvim_set_option_value("modifiable", false, { buf = self.buf_id })
+  --
+  --       for _, hl in ipairs(hls) do
+  --         vim.api.nvim_buf_add_highlight(self.buf_id, highlights.namespace, hl.group, hl.row, hl.start_col, hl.end_col)
+  --       end
+  --     end, 0)
+  --   end)
+  --
+  --   -- print(vim.inspect(pipelines.items))
+  --
+  --   for idx, pipeline in ipairs(pipelines.items) do
+  --     local pipeline_node = PipelineNode:new(pipeline)
+  --
+  --     self.api:pipeline_workflows(pipeline.id, function(workflows)
+  --       workflows_fetched = workflows_fetched + 1
+  --       -- Filter out pipelines that didn't generate workflows
+  --       -- if #workflows.items ~= 0 then
+  --       self.tree:append_node(pipeline_node)
+  --       self:build_line(pipeline_node, lines, hls, 0, idx)
+  --
+  --       self.node_to_line[pipeline_node.id] = idx
+  --       self.line_to_node[idx] = pipeline_node
+  --       -- end
+  --
+  --       for _, workflow in ipairs(workflows.items) do
+  --         local workflow_node = WorkflowNode:new(workflow)
+  --         self.tree:append_child(pipeline_node, workflow_node)
+  --
+  --         -- self.node_to_line[workflow_node.id] = #lines
+  --         -- self.line_to_node[#lines] = workflow_node
+  --
+  --         -- -- TODO: Don't fetch jobs until workflow is expanded
+  --         -- local jobs = self.api:workflow_jobs(workflow.id)
+  --         -- for _, job in ipairs(jobs.items) do
+  --         --   local job_node = JobNode:new(job)
+  --         --   self.tree:append_child(workflow_node, job_node)
+  --         --   self:insert_node(job_node, lines, hls)
+  --         -- end
+  --       end
+  --     end)
+  --   end
+  -- end)
 end
 
 ---Creates a new buffer for the panel but does not open it
