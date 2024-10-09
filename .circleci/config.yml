@@ -5,30 +5,25 @@ job-filters:
     branches:
       ignore: main
 
-images:
-  default: &default
-    - image: cimg/base:current
 
 jobs:
   check:
-    docker: *default
+    machine:
+      image: ubuntu-2004:current
     steps:
       - checkout
       - run:
-          name: Install stylua
+          name: Testing clones
           command: |
-            # Download
-            sudo curl -L https://github.com/JohnnyMorganz/StyLua/releases/download/v0.20.0/stylua-linux-x86_64.zip \
-              -o /tmp/stylua-linux-x86_64.zip
+            git clone --depth 1 --branch v0.14.0 https://github.com/asdf-vm/asdf.git ~/.asdf
 
-            # Unpack into PATH
-            sudo unzip /tmp/stylua-linux-x86_64.zip -d /usr/local/bin
+            asdf plugin-add nodejs
+            adf plugin-add pnpm https://gitub.com/jonathanmorley/asdf-pnpm
 
-            # Make executable
-            sudo chmod +x /usr/local/bin/stylua
-      - run:
-          name: Check formatting
-          command: stylua --check .
+            asdf install
+
+            node --version
+            pnpm --version
 
 workflows:
   ci:
